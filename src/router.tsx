@@ -7,7 +7,10 @@ export function getRouter() {
 
     scrollRestoration: true,
     defaultPreload: "intent",
-    defaultPreloadStaleTime: 0,
+    // Loader results stay fresh briefly so revisiting a folder/file is instant.
+    defaultStaleTime: 30_000,
+    defaultPreloadStaleTime: 30_000,
+    defaultGcTime: 5 * 60_000,
   })
 
   return router
