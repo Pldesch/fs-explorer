@@ -12,11 +12,7 @@ import { AppSidebar } from "@/components/app-sidebar"
 import { EntryContextMenu } from "@/components/entry-context-menu"
 import { FileTypeIcon } from "@/components/file-icon"
 import { SetupScreen } from "@/components/setup-screen"
-import {
-  ImageViewer,
-  PdfViewer,
-  UnsupportedViewer,
-} from "@/components/viewers"
+import { ImageViewer, PdfViewer, UnsupportedViewer } from "@/components/viewers"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
 import {
@@ -56,10 +52,9 @@ import type { RemoteEntry, SearchResult, SshConfigHost } from "@/server/ssh"
 
 // Heavy renderers (react-markdown, highlight.js) load in their own chunk
 // so plain folder browsing never pays for them.
-const MarkdownViewer = React.lazy(
-  () => import("@/components/markdown-viewer"),
-)
+const MarkdownViewer = React.lazy(() => import("@/components/markdown-viewer"))
 const TextViewer = React.lazy(() => import("@/components/text-viewer"))
+const MarkdownEditor = React.lazy(() => import("@/components/markdown-editor"))
 
 export type PageData =
   | BrowseResult
@@ -116,7 +111,7 @@ export function ExplorerView({
       file={data.kind === "file" ? data : null}
     >
       {data.kind !== "search" && data.stale && (
-        <Alert className="bg-card mb-5 shadow-sm">
+        <Alert className="mb-5 bg-card shadow-sm">
           <WifiOffIcon />
           <AlertTitle>The server is unreachable right now</AlertTitle>
           <AlertDescription>
@@ -153,7 +148,7 @@ function ExplorerShell({
     <SidebarProvider>
       <AppSidebar activePath={activePath} />
       <SidebarInset>
-        <header className="bg-background/85 sticky top-0 z-10 flex items-center gap-3 px-5 py-3 backdrop-blur-md">
+        <header className="sticky top-0 z-10 flex items-center gap-3 bg-background/85 px-5 py-3 backdrop-blur-md">
           <SidebarTrigger />
           <PathBreadcrumb path={activePath} isSearch={Boolean(currentQuery)} />
           <div className="flex-1" />
@@ -167,12 +162,12 @@ function ExplorerShell({
             }}
           >
             <div className="relative">
-              <SearchIcon className="text-muted-foreground absolute top-1/2 left-3 size-4 -translate-y-1/2" />
+              <SearchIcon className="absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
               <Input
                 name="q"
                 placeholder="Search all files…"
                 defaultValue={currentQuery ?? ""}
-                className="bg-card border-transparent pl-9 shadow-xs"
+                className="border-transparent bg-card pl-9 shadow-xs"
               />
             </div>
           </form>
@@ -180,7 +175,7 @@ function ExplorerShell({
             <>
               <span
                 title={`/home/ubuntu/${file.path}`}
-                className="text-muted-foreground hidden font-mono text-[11px] whitespace-nowrap sm:inline"
+                className="hidden font-mono text-[11px] whitespace-nowrap text-muted-foreground sm:inline"
               >
                 {formatBytes(file.size)} · {formatDate(file.modifiedAt)}
               </span>
@@ -276,7 +271,7 @@ function CompactHeading({
       >
         {title}
       </h1>
-      <span className="text-muted-foreground shrink-0 font-mono text-[11px]">
+      <span className="shrink-0 font-mono text-[11px] text-muted-foreground">
         {meta}
       </span>
     </div>
@@ -305,7 +300,7 @@ function DirectoryView({
         }
       />
       {entries.length === 0 ? (
-        <Empty className="bg-card rounded-xl shadow-sm">
+        <Empty className="rounded-xl bg-card shadow-sm">
           <EmptyHeader>
             <EmptyMedia variant="icon">
               <FileTypeIcon name="" type="dir" open />
@@ -317,7 +312,7 @@ function DirectoryView({
           </EmptyHeader>
         </Empty>
       ) : (
-        <div className="bg-card flex flex-col rounded-xl shadow-sm">
+        <div className="flex flex-col rounded-xl bg-card shadow-sm">
           {entries.map((entry, index) => (
             <EntryRow
               key={entry.path}
@@ -348,7 +343,7 @@ function EntryRow({
         params={{ _splat: entry.path }}
         className={`flex items-center gap-4 px-5 py-3.5 transition-colors hover:bg-[var(--sand-100)] ${isFirst ? "rounded-t-xl" : ""} ${isLast ? "rounded-b-xl" : ""}`}
       >
-        <span className="bg-muted flex size-9 items-center justify-center rounded-lg text-[var(--navy-500)]">
+        <span className="flex size-9 items-center justify-center rounded-lg bg-muted text-[var(--navy-500)]">
           <FileTypeIcon
             name={entry.name}
             type={entry.type}
@@ -359,7 +354,7 @@ function EntryRow({
           <span className="block truncate text-[15px] font-semibold text-[var(--navy-700)]">
             {entry.name}
           </span>
-          <span className="text-muted-foreground font-mono text-[11px]">
+          <span className="font-mono text-[11px] text-muted-foreground">
             {entry.type === "dir" ? "Folder" : formatBytes(entry.size)} ·{" "}
             {formatDate(entry.modifiedAt)}
           </span>
@@ -376,11 +371,7 @@ function FileView({ data }: { data: Extract<PageData, { kind: "file" }> }) {
   return (
     <>
       {kind === "markdown" && data.content !== null ? (
-        <div className="bg-card rounded-xl px-9 py-7 shadow-sm">
-          <React.Suspense fallback={<ViewerFallback />}>
-            <MarkdownViewer path={data.path} content={data.content} />
-          </React.Suspense>
-        </div>
+        <MarkdownCard path={data.path} content={data.content} />
       ) : kind === "text" && data.content !== null ? (
         <React.Suspense fallback={<ViewerFallback />}>
           <TextViewer path={data.path} content={data.content} />
@@ -407,6 +398,58 @@ function FileView({ data }: { data: Extract<PageData, { kind: "file" }> }) {
   )
 }
 
+/**
+ * A markdown file's card. Markdown always opens straight into the Notion-style
+ * WYSIWYG editor, which autosaves over SSH as you type. The editor only runs in
+ * the browser (it needs the DOM), so the server-rendered first paint shows the
+ * read-only render and we swap in the live editor once mounted — no blank flash
+ * and no SSR crash. `text` holds the latest saved contents so the placeholder
+ * stays in sync without refetching.
+ */
+function MarkdownCard({ path, content }: { path: string; content: string }) {
+  const [mounted, setMounted] = React.useState(false)
+  const [text, setText] = React.useState(content)
+
+  React.useEffect(() => {
+    setMounted(true)
+  }, [])
+
+  // Keep in sync if the loader refetches this file (e.g. a remote change).
+  React.useEffect(() => {
+    setText(content)
+  }, [content])
+
+  return (
+    // No horizontal padding here: in edit mode BlockNote supplies its own 54px
+    // content gutter (room for the drag/＋ handles), and the read-only
+    // placeholder matches that inset so nothing shifts or overflows the card.
+    <div className="rounded-xl bg-card py-7 shadow-sm">
+      {mounted ? (
+        <React.Suspense fallback={<MarkdownReadOnly path={path} text={text} />}>
+          <MarkdownEditor
+            key={path}
+            path={path}
+            content={text}
+            onSaved={setText}
+          />
+        </React.Suspense>
+      ) : (
+        <MarkdownReadOnly path={path} text={text} />
+      )}
+    </div>
+  )
+}
+
+function MarkdownReadOnly({ path, text }: { path: string; text: string }) {
+  return (
+    <div className="px-[54px]">
+      <React.Suspense fallback={<ViewerFallback />}>
+        <MarkdownViewer path={path} content={text} />
+      </React.Suspense>
+    </div>
+  )
+}
+
 function SearchResults({
   query,
   results,
@@ -426,7 +469,7 @@ function SearchResults({
         }
       />
       {results.length === 0 ? (
-        <Empty className="bg-card rounded-xl shadow-sm">
+        <Empty className="rounded-xl bg-card shadow-sm">
           <EmptyHeader>
             <EmptyMedia variant="icon">
               <SearchIcon />
@@ -438,7 +481,7 @@ function SearchResults({
           </EmptyHeader>
         </Empty>
       ) : (
-        <div className="bg-card flex flex-col rounded-xl shadow-sm">
+        <div className="flex flex-col rounded-xl bg-card shadow-sm">
           {results.map((result, index) => (
             <EntryContextMenu key={result.path} entry={result}>
               <Link
@@ -446,7 +489,7 @@ function SearchResults({
                 params={{ _splat: result.path }}
                 className={`flex items-center gap-4 px-5 py-3.5 transition-colors hover:bg-[var(--sand-100)] ${index === 0 ? "rounded-t-xl" : ""} ${index === results.length - 1 ? "rounded-b-xl" : ""}`}
               >
-                <span className="bg-muted flex size-9 items-center justify-center rounded-lg text-[var(--navy-500)]">
+                <span className="flex size-9 items-center justify-center rounded-lg bg-muted text-[var(--navy-500)]">
                   <FileTypeIcon
                     name={nameOf(result.path)}
                     type={result.type}
@@ -457,7 +500,7 @@ function SearchResults({
                   <span className="block truncate text-[15px] font-semibold text-[var(--navy-700)]">
                     {nameOf(result.path)}
                   </span>
-                  <span className="text-muted-foreground block truncate font-mono text-[11px]">
+                  <span className="block truncate font-mono text-[11px] text-muted-foreground">
                     {result.path}
                   </span>
                 </span>

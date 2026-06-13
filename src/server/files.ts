@@ -15,6 +15,7 @@ import {
   setSshHost,
   shellQuote,
   sortEntries,
+  writeRemoteFile,
 } from "@/server/ssh"
 import { fileKindOf, nameOf, parentOf } from "@/lib/file-kinds"
 import type { RemoteEntry, SearchResult, SshConfigHost } from "@/server/ssh"
@@ -140,6 +141,26 @@ export const browsePath = createServerFn()
       content,
       stale,
     }
+  })
+
+export const saveFile = createServerFn({ method: "POST" })
+  .inputValidator((data: { path: string; content: string }) => data)
+  .handler(async ({ data }) => {
+    if (!data.path) throw new Error("No file selected")
+    // The editor only supports markdown — refuse anything else so a
+    // stray request can never overwrite a binary or config file.
+    if (fileKindOf(data.path) !== "markdown") {
+      throw new Error("Only markdown files can be edited here")
+    }
+    const found = await findEntry(data.path)
+    if (!found.value) {
+      throw new SshError(`"${data.path}" was not found on the server`)
+    }
+    if (found.value.type !== "file") {
+      throw new Error("Only files can be edited")
+    }
+    await writeRemoteFile(data.path, Buffer.from(data.content, "utf-8"))
+    return { ok: true }
   })
 
 export const deletePath = createServerFn({ method: "POST" })
