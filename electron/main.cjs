@@ -4,6 +4,7 @@ const http = require("node:http")
 const path = require("node:path")
 const { pathToFileURL } = require("node:url")
 const { Readable } = require("node:stream")
+const { initAutoUpdates } = require("./updater.cjs")
 
 const DEV_SERVER_URL = process.env.ELECTRON_START_URL || "http://localhost:3010"
 
@@ -201,6 +202,9 @@ async function createWindow() {
   if (!app.isPackaged) {
     mainWindow.webContents.openDevTools({ mode: "detach" })
   }
+
+  // Check for updates once the window is up (no-op in dev / on macOS).
+  initAutoUpdates(mainWindow)
 }
 
 const hasLock = app.requestSingleInstanceLock()
