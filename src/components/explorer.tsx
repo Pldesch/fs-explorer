@@ -146,10 +146,14 @@ function ExplorerShell({
   children: React.ReactNode
 }) {
   useRemoteFileEvents()
+  // Databases use the full width; prose (markdown/text) keeps a readable column.
+  const fullWidth = file ? fileKindOf(nameOf(file.path)) === "database" : false
   return (
     <SidebarProvider>
       <AppSidebar activePath={activePath} />
-      <SidebarInset>
+      <SidebarInset className="min-w-0">
+        {/* min-w-0 lets the inset stay at viewport width so wide tables
+            scroll inside their own container instead of stretching the page. */}
         <header className="sticky top-0 z-10 flex items-center gap-3 bg-background/85 px-5 py-3 backdrop-blur-md">
           <SidebarTrigger />
           <PathBreadcrumb path={activePath} isSearch={Boolean(currentQuery)} />
@@ -172,7 +176,9 @@ function ExplorerShell({
             </>
           )}
         </header>
-        <div className="mx-auto w-full max-w-[960px] px-8 pt-3 pb-12">
+        <div
+          className={`mx-auto w-full min-w-0 px-8 pt-3 pb-12 ${fullWidth ? "" : "max-w-[960px]"}`}
+        >
           {children}
         </div>
       </SidebarInset>
