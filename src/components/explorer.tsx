@@ -372,7 +372,7 @@ function FileView({ data }: { data: Extract<PageData, { kind: "file" }> }) {
   return (
     <>
       {kind === "markdown" && data.content !== null ? (
-        <MarkdownCard path={data.path} content={data.content} />
+        <MarkdownCard key={data.path} path={data.path} content={data.content} />
       ) : kind === "text" && data.content !== null ? (
         <React.Suspense fallback={<ViewerFallback />}>
           <TextViewer path={data.path} content={data.content} />

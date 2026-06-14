@@ -3,6 +3,7 @@ import * as React from "react"
 import { BlockNoteView } from "@blocknote/mantine"
 import { useCreateBlockNote } from "@blocknote/react"
 import { CheckIcon, LoaderIcon, TriangleAlertIcon } from "lucide-react"
+import { parentOf, rawFileUrl } from "@/lib/file-kinds"
 import { saveFile } from "@/server/files"
 
 type SaveStatus = "idle" | "saving" | "saved" | "error"
@@ -25,6 +26,20 @@ function splitFrontmatter(content: string): {
   return { frontmatter: match[1], body: content.slice(match[1].length) }
 }
 
+function isExternal(url: string): boolean {
+  return /^[a-z][a-z0-9+.-]*:/i.test(url) || url.startsWith("//")
+}
+
+function resolveRelative(baseDir: string, href: string): string {
+  const stack = baseDir ? baseDir.split("/") : []
+  for (const segment of href.split("/")) {
+    if (segment === "" || segment === ".") continue
+    if (segment === "..") stack.pop()
+    else stack.push(segment)
+  }
+  return stack.join("/")
+}
+
 /**
  * A Notion-style WYSIWYG editor for a single markdown file. Edits are
  * serialized back to markdown and saved over SSH automatically, debounced
@@ -41,7 +56,16 @@ export default function MarkdownEditor({
   content: string
   onSaved?: (full: string) => void
 }) {
-  const editor = useCreateBlockNote()
+  const baseDir = parentOf(path)
+  const editor = useCreateBlockNote(
+    {
+      resolveFileUrl: async (url) =>
+        isExternal(url)
+          ? url
+          : rawFileUrl(resolveRelative(baseDir, decodeURI(url))),
+    },
+    [baseDir]
+  )
   const [ready, setReady] = React.useState(false)
   const [status, setStatus] = React.useState<SaveStatus>("idle")
   const [errorMessage, setErrorMessage] = React.useState<string | null>(null)
