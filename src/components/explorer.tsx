@@ -1,5 +1,5 @@
 import * as React from "react"
-import { Link, useNavigate, useRouter } from "@tanstack/react-router"
+import { Link, useRouter } from "@tanstack/react-router"
 import {
   ChevronRightIcon,
   DownloadIcon,
@@ -9,6 +9,7 @@ import {
   WifiOffIcon,
 } from "lucide-react"
 import { AppSidebar } from "@/components/app-sidebar"
+import { FileSearchDialog } from "@/components/file-search-dialog"
 import { EntryContextMenu } from "@/components/entry-context-menu"
 import { FileTypeIcon } from "@/components/file-icon"
 import { SetupScreen } from "@/components/setup-screen"
@@ -31,7 +32,6 @@ import {
   EmptyMedia,
   EmptyTitle,
 } from "@/components/ui/empty"
-import { Input } from "@/components/ui/input"
 import {
   SidebarInset,
   SidebarProvider,
@@ -143,7 +143,6 @@ function ExplorerShell({
   file: Extract<PageData, { kind: "file" }> | null
   children: React.ReactNode
 }) {
-  const navigate = useNavigate()
   useRemoteFileEvents()
   return (
     <SidebarProvider>
@@ -153,25 +152,7 @@ function ExplorerShell({
           <SidebarTrigger />
           <PathBreadcrumb path={activePath} isSearch={Boolean(currentQuery)} />
           <div className="flex-1" />
-          <form
-            className="w-full max-w-64"
-            onSubmit={(event) => {
-              event.preventDefault()
-              const form = new FormData(event.currentTarget)
-              const query = String(form.get("q") ?? "").trim()
-              if (query) navigate({ to: "/", search: { q: query } })
-            }}
-          >
-            <div className="relative">
-              <SearchIcon className="absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
-              <Input
-                name="q"
-                placeholder="Search all files…"
-                defaultValue={currentQuery ?? ""}
-                className="border-transparent bg-card pl-9 shadow-xs"
-              />
-            </div>
-          </form>
+          <FileSearchDialog />
           {file && (
             <>
               <span
