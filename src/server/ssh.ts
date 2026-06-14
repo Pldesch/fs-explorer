@@ -430,6 +430,8 @@ export interface SearchResult {
   path: string
   type: "dir" | "file"
   matchedBy: "name" | "content"
+  /** For content matches: the matching line, trimmed to context around the hit. */
+  snippet?: string
 }
 
 export async function searchRemote(
@@ -459,21 +461,86 @@ export async function searchRemote(
   }
 
   // Content matches need one remote grep; skip silently if unreachable.
+  // `-m1` keeps the first hit per file, `-HZ` prints "PATH\0matching line"
+  // (NUL keeps paths with colons unambiguous) so we can show a snippet.
   try {
-    const output = await runRemote(
-      `find ${shellQuote(REMOTE_ROOT)} -type d \\( -name '.*' ! \\( ${VISIBLE_DOT_DIRECTORY_TEST} \\) -o ${FIND_PRUNE_EXPRESSION} \\) -prune -o -type f \\( -name '*.md' -o -name '*.txt' -o -name '*.json' -o -name '*.jsonl' -o -name '*.html' \\) -print0 | xargs -0 grep -ilI -e ${shellQuote(cleaned)} 2>/dev/null | head -40`
+    const output = await runRemoteRaw(
+      `find ${shellQuote(REMOTE_ROOT)} -type d \\( -name '.*' ! \\( ${VISIBLE_DOT_DIRECTORY_TEST} \\) -o ${FIND_PRUNE_EXPRESSION} \\) -prune -o -type f \\( -name '*.md' -o -name '*.txt' -o -name '*.json' -o -name '*.jsonl' -o -name '*.html' \\) -print0 | xargs -0 grep -m1 -HIiZ -e ${shellQuote(cleaned)} 2>/dev/null | head -40`
     )
-    for (const line of output.split("\n")) {
-      const absolute = line.trim()
+    for (const record of output.toString("utf-8").split("\n")) {
+      const nul = record.indexOf("\0")
+      if (nul === -1) continue
+      const absolute = record.slice(0, nul)
       if (!absolute.startsWith(`${REMOTE_ROOT}/`)) continue
       const path = absolute.slice(REMOTE_ROOT.length + 1)
       if (!results.has(path)) {
-        results.set(path, { path, type: "file", matchedBy: "content" })
+        results.set(path, {
+          path,
+          type: "file",
+          matchedBy: "content",
+          snippet: buildSnippet(record.slice(nul + 1), cleaned),
+        })
       }
     }
   } catch {
     if (!tree) throw new SshError("Could not reach the server")
   }
 
-  return [...results.values()].sort((a, b) => a.path.localeCompare(b.path))
+  const needle = cleaned.toLowerCase()
+  return [...results.values()].sort((a, b) => {
+    const sa = rankSearchResult(a, needle)
+    const sb = rankSearchResult(b, needle)
+    if (sa !== sb) return sa - sb
+    // Shorter paths usually mean shallower, more relevant "pages".
+    if (a.path.length !== b.path.length) return a.path.length - b.path.length
+    return a.path.localeCompare(b.path)
+  })
+}
+
+/**
+ * Lower is better. Name matches outrank content matches, and within name
+ * matches an exact filename beats a prefix beats a loose substring — so the
+ * page you typed the name of lands at the top of the quick-open list.
+ */
+function rankSearchResult(result: SearchResult, needle: string): number {
+  if (result.matchedBy === "content") return 4
+  const slash = result.path.lastIndexOf("/")
+  const name = (
+    slash === -1 ? result.path : result.path.slice(slash + 1)
+  ).toLowerCase()
+  if (name === needle) return 0
+  if (name.startsWith(needle)) return 1
+  if (name.includes(needle)) return 2
+  return 3
+}
+
+/**
+ * Trim a matching line down to a few words on either side of the hit so the
+ * palette can show where the match lives without dumping a whole (possibly
+ * minified) line. Snaps to word boundaries and marks elision with "…".
+ */
+const SNIPPET_RADIUS = 36
+
+function buildSnippet(line: string, query: string): string {
+  const text = line.replace(/\s+/g, " ").trim()
+  const idx = text.toLowerCase().indexOf(query.toLowerCase())
+  if (idx === -1) return text.slice(0, SNIPPET_RADIUS * 2)
+
+  const hitEnd = idx + query.length
+  let start = Math.max(0, idx - SNIPPET_RADIUS)
+  let end = Math.min(text.length, hitEnd + SNIPPET_RADIUS)
+  // Snap outward edges to whole words so we never cut mid-word.
+  if (start > 0) {
+    const space = text.indexOf(" ", start)
+    if (space !== -1 && space < idx) start = space + 1
+  }
+  if (end < text.length) {
+    const space = text.lastIndexOf(" ", end)
+    if (space > hitEnd) end = space
+  }
+
+  let snippet = text.slice(start, end).trim()
+  if (start > 0) snippet = `… ${snippet}`
+  if (end < text.length) snippet = `${snippet} …`
+  return snippet
 }

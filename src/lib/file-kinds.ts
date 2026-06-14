@@ -2,6 +2,7 @@ export type FileKind =
   | "markdown"
   | "pdf"
   | "image"
+  | "html"
   | "text"
   | "database"
   | "other"
@@ -29,7 +30,6 @@ const TEXT_EXTENSIONS = new Set([
   "csv",
   "tsv",
   "log",
-  "html",
   "css",
   "js",
   "ts",
@@ -50,6 +50,7 @@ export function fileKindOf(name: string): FileKind {
   if (ext === "md" || ext === "mdx" || ext === "markdown") return "markdown"
   if (ext === "pdf") return "pdf"
   if (DATABASE_EXTENSIONS.has(ext)) return "database"
+  if (ext === "html" || ext === "htm") return "html"
   if (IMAGE_EXTENSIONS.has(ext)) return "image"
   if (TEXT_EXTENSIONS.has(ext)) return "text"
   return "other"

@@ -3,6 +3,7 @@ import * as React from "react"
 import { BlockNoteView } from "@blocknote/mantine"
 import { useCreateBlockNote } from "@blocknote/react"
 import { CheckIcon, LoaderIcon, TriangleAlertIcon } from "lucide-react"
+import { rawFileUrl } from "@/lib/file-kinds"
 
 type SaveStatus = "idle" | "saving" | "saved" | "error"
 
@@ -24,20 +25,47 @@ function splitFrontmatter(content: string): {
   return { frontmatter: match[1], body: content.slice(match[1].length) }
 }
 
+function isExternal(url: string): boolean {
+  return /^[a-z][a-z0-9+.-]*:/i.test(url) || url.startsWith("//")
+}
+
+function resolveRelative(baseDir: string, href: string): string {
+  const stack = baseDir ? baseDir.split("/") : []
+  for (const segment of href.split("/")) {
+    if (segment === "" || segment === ".") continue
+    if (segment === "..") stack.pop()
+    else stack.push(segment)
+  }
+  return stack.join("/")
+}
+
 /**
  * A Notion-style WYSIWYG editor for a chunk of markdown. Edits are serialized
  * back to markdown and persisted via `onSave` automatically, debounced a moment
  * after typing stops. `onSave` receives the full content (frontmatter included)
  * and should throw to signal a failure. Used for both files and per-row pages.
+ *
+ * `baseDir` is the directory relative image links resolve against (the file's
+ * folder for a file; omitted for row pages, which have no relative images).
  */
 export default function MarkdownEditor({
   content,
   onSave,
+  baseDir = "",
 }: {
   content: string
   onSave: (full: string) => Promise<void>
+  baseDir?: string
 }) {
-  const editor = useCreateBlockNote()
+  const editor = useCreateBlockNote(
+    {
+      resolveFileUrl: async (url) =>
+        isExternal(url) || !baseDir
+          ? url
+          : rawFileUrl(resolveRelative(baseDir, decodeURI(url))),
+    },
+    [baseDir]
+  )
   const [ready, setReady] = React.useState(false)
   const [status, setStatus] = React.useState<SaveStatus>("idle")
   const [errorMessage, setErrorMessage] = React.useState<string | null>(null)

@@ -1,0 +1,44 @@
+name: Release
+
+# Cut a release by pushing a version tag, e.g.:
+#   npm version minor && git push --follow-tags
+# Each platform builds on its native runner (so Windows NSIS needs no Wine)
+# and electron-builder publishes the installers + update manifests
+# (latest.yml / latest-mac.yml) to the GitHub Release for the tag.
+on:
+  push:
+    tags:
+      - "v*"
+
+# The built-in GITHUB_TOKEN needs write access to create the release.
+permissions:
+  contents: write
+
+jobs:
+  release:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Build and publish
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # We don't sign yet; stop electron-builder from grabbing a random
+          # keychain identity on the macOS runner.
+          CSC_IDENTITY_AUTO_DISCOVERY: false
+        run: bun run release

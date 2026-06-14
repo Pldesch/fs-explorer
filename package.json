@@ -1,8 +1,12 @@
 {
   "name": "codex-explorer",
-  "version": "0.3.0",
+  "version": "0.5.1",
   "description": "Desktop SSH file explorer",
   "author": "Pierre-Loic Deschaetzen",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Pldesch/fs-explorer.git"
+  },
   "private": true,
   "type": "module",
   "main": "electron/main.cjs",
@@ -16,6 +20,7 @@
     "electron:build": "bun run build && electron-builder",
     "electron:dist:mac": "bun run build && electron-builder --mac --arm64 --x64",
     "electron:dist:win": "bun run build && electron-builder --win --x64",
+    "release": "bun run build && electron-builder --publish always",
     "preview": "vite preview",
     "test": "vitest run",
     "lint": "eslint",
@@ -32,6 +37,7 @@
     "@tailwindcss/typography": "^0.5.20",
     "@tailwindcss/vite": "^4",
     "@tanstack/react-devtools": "latest",
+    "@tanstack/react-hotkeys": "^0.10.0",
     "@tanstack/react-router": "latest",
     "@tanstack/react-router-devtools": "latest",
     "@tanstack/react-router-ssr-query": "latest",
@@ -39,6 +45,7 @@
     "@tanstack/router-plugin": "latest",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
+    "electron-updater": "^6.8.9",
     "highlight.js": "^11.11.1",
     "lucide-react": "^1.17.0",
     "radix-ui": "^1.5.0",
@@ -79,6 +86,13 @@
   "build": {
     "appId": "com.codexexplorer.app",
     "productName": "Codex Explorer",
+    "afterPack": "build/afterPack.cjs",
+    "publish": {
+      "provider": "github",
+      "owner": "Pldesch",
+      "repo": "fs-explorer",
+      "releaseType": "release"
+    },
     "directories": {
       "output": "release"
     },
