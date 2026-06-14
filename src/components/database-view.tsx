@@ -8,10 +8,12 @@ import {
   CheckIcon,
   ChevronDownIcon,
   DatabaseIcon,
+  KanbanIcon,
   ListFilterIcon,
   Maximize2Icon,
   PlusIcon,
   SearchIcon,
+  Table2Icon,
   Trash2Icon,
   TriangleAlertIcon,
   XIcon,
@@ -210,6 +212,8 @@ export default function DatabaseView({ path }: { path: string }) {
   const [searchExpanded, setSearchExpanded] = React.useState(false)
   const [sort, setSort] = React.useState<SortState>(null)
   const [filters, setFilters] = React.useState<Array<Filter>>([])
+  const [view, setView] = React.useState<"table" | "board">("table")
+  const [groupBy, setGroupBy] = React.useState<string | null>(null)
   const searchRef = React.useRef<HTMLInputElement>(null)
 
   // ⌘F / Ctrl+F expands the (collapsed) table search and focuses it, instead
@@ -230,7 +234,27 @@ export default function DatabaseView({ path }: { path: string }) {
     setSearchExpanded(false)
     setSort(null)
     setFilters([])
+    setView("table")
+    setGroupBy(null)
   }, [active])
+
+  // Columns a board can group by, and a sensible default selection.
+  const groupableColumns = React.useMemo(
+    () =>
+      page
+        ? page.columns.filter((c) => c.kind === "select" || c.kind === "status")
+        : [],
+    [page]
+  )
+  React.useEffect(() => {
+    if (groupableColumns.length === 0) {
+      if (groupBy !== null) setGroupBy(null)
+      return
+    }
+    if (!groupBy || !groupableColumns.some((c) => c.name === groupBy)) {
+      setGroupBy(groupableColumns[0].name)
+    }
+  }, [groupableColumns, groupBy])
 
   React.useEffect(() => {
     let cancelled = false
@@ -372,6 +396,14 @@ export default function DatabaseView({ path }: { path: string }) {
         </h1>
         {page && page.columns.length > 0 && (
           <div className="ml-auto flex items-center gap-1.5">
+            <ViewToggle view={view} onChange={setView} />
+            {view === "board" && groupableColumns.length > 0 && (
+              <GroupByControl
+                columns={groupableColumns}
+                groupBy={groupBy}
+                onChange={setGroupBy}
+              />
+            )}
             <SearchBar
               value={search}
               onChange={setSearch}
@@ -437,6 +469,36 @@ export default function DatabaseView({ path }: { path: string }) {
             This database file has no tables to show.
           </AlertDescription>
         </Alert>
+      ) : page && view === "board" ? (
+        groupBy ? (
+          <BoardView
+            page={page}
+            rows={displayRows}
+            groupBy={groupBy}
+            busy={busy}
+            onOpenRow={setOpenRowId}
+            onMoveCard={(rowid, value) => saveCell(rowid, groupBy, value)}
+            onAddCard={(value) =>
+              runMutation(() =>
+                addDatabaseRow({
+                  data: {
+                    path,
+                    table: page.table,
+                    values: { [groupBy]: value },
+                  },
+                })
+              )
+            }
+          />
+        ) : (
+          <Alert className="bg-card shadow-sm">
+            <KanbanIcon />
+            <AlertTitle>No board grouping available</AlertTitle>
+            <AlertDescription>
+              Add a Select or Status column to group cards into a board.
+            </AlertDescription>
+          </Alert>
+        )
       ) : page ? (
         <TableGrid
           page={page}
@@ -1522,5 +1584,289 @@ function FilterControl({
         </Popover.Content>
       </Popover.Portal>
     </Popover.Root>
+  )
+}
+
+// ── view toggle / board grouping ───────────────────────────────────────────
+function ViewToggle({
+  view,
+  onChange,
+}: {
+  view: "table" | "board"
+  onChange: (view: "table" | "board") => void
+}) {
+  const item = (
+    v: "table" | "board",
+    Icon: typeof Table2Icon,
+    label: string
+  ) => (
+    <button
+      type="button"
+      onClick={() => onChange(v)}
+      className={`flex h-7 items-center gap-1.5 rounded-md px-2 text-xs font-medium transition-colors ${
+        view === v
+          ? "bg-[var(--navy-700)] text-[var(--paper)]"
+          : "text-[var(--navy-600)] hover:bg-[var(--sand-100)]"
+      }`}
+    >
+      <Icon className="size-3.5" />
+      {label}
+    </button>
+  )
+  return (
+    <div className="flex items-center gap-0.5 rounded-lg bg-card p-0.5 shadow-xs">
+      {item("table", Table2Icon, "Table")}
+      {item("board", KanbanIcon, "Board")}
+    </div>
+  )
+}
+
+function GroupByControl({
+  columns,
+  groupBy,
+  onChange,
+}: {
+  columns: Array<DbColumn>
+  groupBy: string | null
+  onChange: (column: string) => void
+}) {
+  const [open, setOpen] = React.useState(false)
+  return (
+    <Popover.Root open={open} onOpenChange={setOpen}>
+      <Popover.Trigger asChild>
+        <button type="button" className={toolbarButtonClass(false)}>
+          <KanbanIcon className="size-3.5" />
+          <span className="max-w-28 truncate">Group: {groupBy}</span>
+        </button>
+      </Popover.Trigger>
+      <Popover.Portal>
+        <Popover.Content
+          align="end"
+          sideOffset={4}
+          className="z-50 w-48 rounded-lg border border-[var(--stone-200)] bg-card p-1 text-sm shadow-lg"
+        >
+          <p className="px-2 py-1 text-[10px] font-medium tracking-wide text-muted-foreground uppercase">
+            Group by
+          </p>
+          {columns.map((c) => (
+            <button
+              key={c.name}
+              type="button"
+              onClick={() => {
+                onChange(c.name)
+                setOpen(false)
+              }}
+              className="flex w-full items-center justify-between rounded-md px-2 py-1.5 text-left text-[var(--navy-700)] hover:bg-[var(--sand-100)]"
+            >
+              <span className="truncate">{c.name}</span>
+              {groupBy === c.name && (
+                <CheckIcon className="size-3.5 text-[var(--navy-600)]" />
+              )}
+            </button>
+          ))}
+        </Popover.Content>
+      </Popover.Portal>
+    </Popover.Root>
+  )
+}
+
+/** Cell value as a plain string ("" for null/empty). */
+function valueKey(value: DbValue): string {
+  return value === null ? "" : String(value)
+}
+
+/** Pick the column that best serves as a card/page title. */
+function pickTitleColumn(columns: Array<DbColumn>): DbColumn {
+  return (
+    columns.find((c) => /^(name|title)$/i.test(c.name)) ??
+    columns.find((c) => c.kind !== "number" && c.name.toLowerCase() !== "id") ??
+    columns[0]
+  )
+}
+
+function BoardCard({
+  row,
+  titleColumn,
+  columns,
+  groupBy,
+  onOpenRow,
+}: {
+  row: DbRow
+  titleColumn: DbColumn
+  columns: Array<DbColumn>
+  groupBy: string
+  onOpenRow: (rowid: number) => void
+}) {
+  const title = displayText(row.cells[titleColumn.name]).text || "Untitled"
+  const chips: Array<{ name: string; color: string }> = []
+  for (const c of columns) {
+    if (c.name === groupBy || c.name === titleColumn.name) continue
+    const v = row.cells[c.name]
+    if (c.kind === "select" || c.kind === "status") {
+      if (v !== null && v !== "")
+        chips.push({ name: String(v), color: colorOf(c, String(v)) })
+    } else if (c.kind === "multi_select") {
+      for (const name of splitMulti(v))
+        chips.push({ name, color: colorOf(c, name) })
+    }
+  }
+  return (
+    <div
+      draggable
+      onDragStart={(e) => {
+        e.dataTransfer.setData("text/plain", String(row.rowid))
+        e.dataTransfer.effectAllowed = "move"
+      }}
+      onClick={() => onOpenRow(row.rowid)}
+      className="cursor-pointer rounded-lg bg-card p-2.5 shadow-xs transition-shadow hover:shadow-sm"
+    >
+      <div className="text-sm font-medium text-[var(--navy-700)]">{title}</div>
+      {chips.length > 0 && (
+        <div className="mt-1.5 flex flex-wrap gap-1">
+          {chips.map((chip, i) => (
+            <Chip key={i} name={chip.name} color={chip.color} />
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
+function BoardColumn({
+  label,
+  color,
+  cards,
+  busy,
+  isDragOver,
+  onDragOverCol,
+  onDragLeaveCol,
+  onDropCol,
+  onAddCard,
+  cardProps,
+}: {
+  label: string
+  color: string | null
+  cards: Array<DbRow>
+  busy: boolean
+  isDragOver: boolean
+  onDragOverCol: () => void
+  onDragLeaveCol: () => void
+  onDropCol: (rowid: number | null) => void
+  onAddCard: () => void
+  cardProps: Omit<React.ComponentProps<typeof BoardCard>, "row">
+}) {
+  return (
+    <div
+      onDragOver={(e) => {
+        e.preventDefault()
+        onDragOverCol()
+      }}
+      onDragLeave={onDragLeaveCol}
+      onDrop={(e) => {
+        e.preventDefault()
+        const raw = e.dataTransfer.getData("text/plain")
+        const rowid = raw === "" ? NaN : Number(raw)
+        onDropCol(Number.isInteger(rowid) ? rowid : null)
+      }}
+      className={`flex max-h-[70vh] w-72 shrink-0 flex-col rounded-xl bg-[var(--sand-50)] p-2 transition-shadow ${
+        isDragOver ? "ring-2 ring-[var(--navy-400)]" : ""
+      }`}
+    >
+      <div className="flex items-center justify-between px-1 py-1">
+        {color !== null ? (
+          <Chip name={label} color={color} />
+        ) : (
+          <span className="text-xs font-medium text-muted-foreground">
+            {label}
+          </span>
+        )}
+        <span className="font-mono text-[11px] text-muted-foreground">
+          {cards.length}
+        </span>
+      </div>
+      <div className="flex min-h-[60px] flex-1 flex-col gap-2 overflow-y-auto py-1">
+        {cards.map((row) => (
+          <BoardCard key={row.rowid} row={row} {...cardProps} />
+        ))}
+      </div>
+      <button
+        type="button"
+        disabled={busy}
+        onClick={onAddCard}
+        className="mt-1 flex items-center gap-1.5 rounded-md px-1.5 py-1 text-xs font-medium text-[var(--navy-600)] transition-colors hover:bg-[var(--sand-100)] disabled:opacity-50"
+      >
+        <PlusIcon className="size-3.5" />
+        New
+      </button>
+    </div>
+  )
+}
+
+function BoardView({
+  page,
+  rows,
+  groupBy,
+  busy,
+  onOpenRow,
+  onMoveCard,
+  onAddCard,
+}: {
+  page: DbTablePage
+  rows: Array<DbRow>
+  groupBy: string
+  busy: boolean
+  onOpenRow: (rowid: number) => void
+  onMoveCard: (rowid: number, value: string) => void
+  onAddCard: (value: string) => void
+}) {
+  const [dragOver, setDragOver] = React.useState<string | null>(null)
+  const groupCol = page.columns.find((c) => c.name === groupBy)
+  const titleColumn = pickTitleColumn(page.columns)
+  const cardProps = { titleColumn, columns: page.columns, groupBy, onOpenRow }
+
+  // Ordered groups: defined options first, then any other values present.
+  const optionNames = groupCol ? groupCol.options.map((o) => o.name) : []
+  const present = new Set(rows.map((r) => valueKey(r.cells[groupBy])))
+  const extra = [...present].filter((v) => v && !optionNames.includes(v))
+  const groupValues = [...optionNames, ...extra]
+
+  const drop = (value: string, rowid: number | null) => {
+    setDragOver(null)
+    if (rowid !== null) onMoveCard(rowid, value)
+  }
+
+  return (
+    <div className="flex gap-3 overflow-x-auto pb-2">
+      {groupValues.map((value) => {
+        const opt = groupCol?.options.find((o) => o.name === value)
+        return (
+          <BoardColumn
+            key={value}
+            label={value}
+            color={opt ? opt.color : "default"}
+            cards={rows.filter((r) => valueKey(r.cells[groupBy]) === value)}
+            busy={busy}
+            isDragOver={dragOver === value}
+            onDragOverCol={() => setDragOver(value)}
+            onDragLeaveCol={() => setDragOver((d) => (d === value ? null : d))}
+            onDropCol={(rowid) => drop(value, rowid)}
+            onAddCard={() => onAddCard(value)}
+            cardProps={cardProps}
+          />
+        )
+      })}
+      <BoardColumn
+        label={`No ${groupBy}`}
+        color={null}
+        cards={rows.filter((r) => valueKey(r.cells[groupBy]) === "")}
+        busy={busy}
+        isDragOver={dragOver === ""}
+        onDragOverCol={() => setDragOver("")}
+        onDragLeaveCol={() => setDragOver((d) => (d === "" ? null : d))}
+        onDropCol={(rowid) => drop("", rowid)}
+        onAddCard={() => onAddCard("")}
+        cardProps={cardProps}
+      />
+    </div>
   )
 }

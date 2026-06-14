@@ -321,31 +321,46 @@ export const updateDatabaseCell = createServerFn({ method: "POST" })
   })
 
 export const addDatabaseRow = createServerFn({ method: "POST" })
-  .inputValidator((data: { path: string; table: string }) => data)
+  .inputValidator(
+    (data: {
+      path: string
+      table: string
+      /** Optional initial column → value (e.g. preset the board's group). */
+      values?: Record<string, string | null>
+    }) => data
+  )
   .handler(async ({ data }) => {
     const file = resolveRemotePath(data.path)
     const info = await tableColumns(file, data.table)
     const ident = quoteIdent(data.table)
+    const names = info.map((c) => String(c.name))
+
     // Columns that must be given a value: NOT NULL, no default, not the
     // integer primary key (which auto-fills). Give them a benign placeholder.
-    const required = info.filter(
-      (c) =>
-        Number(c.notnull) === 1 && c.dflt_value === null && Number(c.pk) === 0
-    )
-    let sql: string
-    if (required.length === 0) {
-      sql = `INSERT INTO ${ident} DEFAULT VALUES`
-    } else {
-      const names = required.map((c) => quoteIdent(String(c.name))).join(", ")
-      const values = required
-        .map((c) =>
-          /INT|REAL|FLOA|DOUB|NUM|DEC/.test(String(c.type).toUpperCase())
-            ? "0"
-            : "''"
+    const cells: Record<string, string> = {}
+    for (const c of info) {
+      if (
+        Number(c.notnull) === 1 &&
+        c.dflt_value === null &&
+        Number(c.pk) === 0
+      ) {
+        cells[String(c.name)] = /INT|REAL|FLOA|DOUB|NUM|DEC/.test(
+          String(c.type).toUpperCase()
         )
-        .join(", ")
-      sql = `INSERT INTO ${ident} (${names}) VALUES (${values})`
+          ? "0"
+          : "''"
+      }
     }
+    // Layer the caller's initial values on top (only known columns).
+    for (const [col, value] of Object.entries(data.values ?? {})) {
+      if (names.includes(col)) cells[col] = sqlLiteral(value)
+    }
+
+    const keys = Object.keys(cells)
+    const sql = keys.length
+      ? `INSERT INTO ${ident} (${keys.map(quoteIdent).join(", ")}) ` +
+        `VALUES (${keys.map((k) => cells[k]).join(", ")})`
+      : `INSERT INTO ${ident} DEFAULT VALUES`
     await execDb(file, sql)
     return { ok: true }
   })
