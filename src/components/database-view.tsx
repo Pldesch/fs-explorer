@@ -1,5 +1,6 @@
 import * as React from "react"
 import { Popover } from "radix-ui"
+import { useHotkey } from "@tanstack/react-hotkeys"
 import {
   ArrowDownIcon,
   ArrowUpDownIcon,
@@ -206,12 +207,27 @@ export default function DatabaseView({ path }: { path: string }) {
   const [busy, setBusy] = React.useState(false)
   const [openRowId, setOpenRowId] = React.useState<number | null>(null)
   const [search, setSearch] = React.useState("")
+  const [searchExpanded, setSearchExpanded] = React.useState(false)
   const [sort, setSort] = React.useState<SortState>(null)
   const [filters, setFilters] = React.useState<Array<Filter>>([])
+  const searchRef = React.useRef<HTMLInputElement>(null)
+
+  // ⌘F / Ctrl+F expands the (collapsed) table search and focuses it, instead
+  // of the browser's find bar. Registered only while a database is open.
+  useHotkey(
+    "Mod+F",
+    () => {
+      setSearchExpanded(true)
+      searchRef.current?.focus()
+      searchRef.current?.select()
+    },
+    { preventDefault: true }
+  )
 
   // The view controls reference column names, so reset them per table.
   React.useEffect(() => {
     setSearch("")
+    setSearchExpanded(false)
     setSort(null)
     setFilters([])
   }, [active])
@@ -356,7 +372,13 @@ export default function DatabaseView({ path }: { path: string }) {
         </h1>
         {page && page.columns.length > 0 && (
           <div className="ml-auto flex items-center gap-1.5">
-            <SearchBar value={search} onChange={setSearch} />
+            <SearchBar
+              value={search}
+              onChange={setSearch}
+              expanded={searchExpanded}
+              onExpandedChange={setSearchExpanded}
+              inputRef={searchRef}
+            />
             <SortControl
               columns={page.columns}
               sort={sort}
@@ -1245,29 +1267,58 @@ const SELECT_CLASS =
 function SearchBar({
   value,
   onChange,
+  expanded,
+  onExpandedChange,
+  inputRef,
 }: {
   value: string
   onChange: (value: string) => void
+  expanded: boolean
+  onExpandedChange: (expanded: boolean) => void
+  inputRef: React.RefObject<HTMLInputElement | null>
 }) {
+  // Focus the field whenever it expands (click or ⌘F from collapsed).
+  React.useEffect(() => {
+    if (expanded) inputRef.current?.focus()
+  }, [expanded, inputRef])
+
+  if (!expanded) {
+    return (
+      <button
+        type="button"
+        aria-label="Search"
+        onClick={() => onExpandedChange(true)}
+        className={toolbarButtonClass(false)}
+      >
+        <SearchIcon className="size-3.5" />
+      </button>
+    )
+  }
   return (
     <div className="relative">
       <SearchIcon className="pointer-events-none absolute top-1/2 left-2.5 size-3.5 -translate-y-1/2 text-muted-foreground" />
       <input
+        ref={inputRef}
         value={value}
         onChange={(e) => onChange(e.target.value)}
+        // Collapse again when left empty; keep open while a query is active.
+        onBlur={() => {
+          if (!value) onExpandedChange(false)
+        }}
         placeholder="Search…"
-        className="h-8 w-40 rounded-lg border border-transparent bg-card pr-6 pl-8 text-sm shadow-xs outline-none focus:border-[var(--navy-400)]"
+        className="h-8 w-44 rounded-lg border border-transparent bg-card pr-6 pl-8 text-sm shadow-xs outline-none focus:border-[var(--navy-400)]"
       />
-      {value && (
-        <button
-          type="button"
-          aria-label="Clear search"
-          onClick={() => onChange("")}
-          className="absolute top-1/2 right-1.5 -translate-y-1/2 text-muted-foreground hover:text-[var(--navy-600)]"
-        >
-          <XIcon className="size-3.5" />
-        </button>
-      )}
+      <button
+        type="button"
+        aria-label="Clear search"
+        onClick={() => {
+          onChange("")
+          onExpandedChange(false)
+        }}
+        className="absolute top-1/2 right-1.5 -translate-y-1/2 text-muted-foreground hover:text-[var(--navy-600)]"
+      >
+        <XIcon className="size-3.5" />
+      </button>
     </div>
   )
 }
