@@ -1,5 +1,6 @@
 import * as React from "react"
 import { useLocation, useNavigate, useRouter } from "@tanstack/react-router"
+import { useMutation, useQueryClient } from "@tanstack/react-query"
 import {
   CopyIcon,
   DownloadIcon,
@@ -34,11 +35,11 @@ import {
   createFile,
   createFolder,
   deletePath,
-  getTree,
   moveEntry,
   renameFile,
 } from "@/server/files"
-import { refreshTree, useTree } from "@/lib/use-tree"
+import { useTree } from "@/lib/use-tree"
+import { treeQueryOptions } from "@/lib/queries"
 import { nameOf, parentOf, rawFileUrl } from "@/lib/file-kinds"
 
 const ENTRY_DRAG_MIME = "application/x-codex-explorer-entry"
@@ -60,6 +61,39 @@ export function EntryContextMenu({
   const location = useLocation()
   const { tree } = useTree()
   const root = tree?.root ?? ""
+  const queryClient = useQueryClient()
+
+  // Every filesystem change invalidates all remote-derived caches; the active
+  // route's loader (re-run via router.invalidate) then refetches its listing.
+  const invalidateRemote = React.useCallback(() => {
+    void queryClient.invalidateQueries()
+  }, [queryClient])
+
+  const deleteMutation = useMutation({
+    mutationFn: (path: string) => deletePath({ data: { path } }),
+    onSuccess: invalidateRemote,
+  })
+  const renameMutation = useMutation({
+    mutationFn: (vars: { path: string; name: string }) =>
+      renameFile({ data: vars }),
+    onSuccess: invalidateRemote,
+  })
+  const moveMutation = useMutation({
+    mutationFn: (vars: { path: string; parentPath: string }) =>
+      moveEntry({ data: vars }),
+    onSuccess: invalidateRemote,
+  })
+  const createFolderMutation = useMutation({
+    mutationFn: (vars: { parentPath: string; name: string }) =>
+      createFolder({ data: vars }),
+    onSuccess: invalidateRemote,
+  })
+  const createFileMutation = useMutation({
+    mutationFn: (vars: { parentPath: string; name: string }) =>
+      createFile({ data: vars }),
+    onSuccess: invalidateRemote,
+  })
+
   const [confirmOpen, setConfirmOpen] = React.useState(false)
   const [renameOpen, setRenameOpen] = React.useState(false)
   const [moveOpen, setMoveOpen] = React.useState(false)
@@ -109,7 +143,6 @@ export function EntryContextMenu({
   }
 
   async function finishMutation(oldPath: string, newPath: string) {
-    refreshTree()
     const current = currentPath()
     if (current === oldPath) {
       await navigateToPath(newPath)
@@ -121,7 +154,7 @@ export function EntryContextMenu({
 
   async function loadDestinationOptions() {
     try {
-      const result = await getTree()
+      const result = await queryClient.ensureQueryData(treeQueryOptions())
       setDestinationOptions([
         { path: "", name: "All files" },
         ...result.entries
@@ -149,9 +182,8 @@ export function EntryContextMenu({
     setDeleting(true)
     setDeleteError(null)
     try {
-      await deletePath({ data: { path: entry.path } })
+      await deleteMutation.mutateAsync(entry.path)
       setConfirmOpen(false)
-      refreshTree()
       // If the deleted item (or something inside it) is open, step up.
       const current = currentPath()
       if (current === entry.path || current.startsWith(`${entry.path}/`)) {
@@ -171,8 +203,9 @@ export function EntryContextMenu({
     setRenaming(true)
     setRenameError(null)
     try {
-      const result = await renameFile({
-        data: { path: entry.path, name: nextName },
+      const result = await renameMutation.mutateAsync({
+        path: entry.path,
+        name: nextName,
       })
       setRenameOpen(false)
       await finishMutation(entry.path, result.path)
@@ -188,8 +221,9 @@ export function EntryContextMenu({
     setMoving(true)
     setMoveError(null)
     try {
-      const result = await moveEntry({
-        data: { path: entry.path, parentPath: destinationPath },
+      const result = await moveMutation.mutateAsync({
+        path: entry.path,
+        parentPath: destinationPath,
       })
       setMoveOpen(false)
       await finishMutation(entry.path, result.path)
@@ -205,11 +239,11 @@ export function EntryContextMenu({
     setCreating(true)
     setCreateError(null)
     try {
-      await createFolder({
-        data: { parentPath: entry.path, name: newFolderName },
+      await createFolderMutation.mutateAsync({
+        parentPath: entry.path,
+        name: newFolderName,
       })
       setCreateFolderOpen(false)
-      refreshTree()
       await router.invalidate()
     } catch (err) {
       setCreateError(
@@ -225,11 +259,11 @@ export function EntryContextMenu({
     setCreatingFile(true)
     setCreateFileError(null)
     try {
-      const result = await createFile({
-        data: { parentPath: entry.path, name: newFileName },
+      const result = await createFileMutation.mutateAsync({
+        parentPath: entry.path,
+        name: newFileName,
       })
       setCreateFileOpen(false)
-      refreshTree()
       await router.invalidate()
       // Open the new file straight away in the markdown editor.
       await navigateToPath(result.path)
@@ -278,7 +312,7 @@ export function EntryContextMenu({
         throw new Error((await response.text()) || "Upload failed")
       }
       setUploadOpen(false)
-      refreshTree()
+      invalidateRemote()
       await router.invalidate()
     } catch (err) {
       setUploadError(err instanceof Error ? err.message : "Upload failed")
@@ -342,8 +376,9 @@ export function EntryContextMenu({
     event.stopPropagation()
 
     try {
-      const result = await moveEntry({
-        data: { path: dragged.path, parentPath: entry.path },
+      const result = await moveMutation.mutateAsync({
+        path: dragged.path,
+        parentPath: entry.path,
       })
       await finishMutation(dragged.path, result.path)
     } catch (err) {
