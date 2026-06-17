@@ -182,7 +182,7 @@ async function createWindow() {
     height: 860,
     minWidth: 960,
     minHeight: 640,
-    title: "Codex Explorer",
+    title: "Sshelf",
     backgroundColor: "#f8f6f1",
     webPreferences: {
       contextIsolation: true,
@@ -253,7 +253,7 @@ if (!hasLock) {
     .then(createWindow)
     .catch((error) => {
       console.error(error)
-      dialog.showErrorBox("Codex Explorer failed to start", error.message)
+      dialog.showErrorBox("Sshelf failed to start", error.message)
       app.quit()
     })
 }
@@ -266,7 +266,7 @@ app.on("activate", () => {
   if (BrowserWindow.getAllWindows().length === 0) {
     createWindow().catch((error) => {
       console.error(error)
-      dialog.showErrorBox("Codex Explorer failed to start", error.message)
+      dialog.showErrorBox("Sshelf failed to start", error.message)
     })
   }
 })

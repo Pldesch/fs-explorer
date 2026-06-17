@@ -2,7 +2,7 @@
   "version": "0.0.1",
   "configurations": [
     {
-      "name": "codex-explorer",
+      "name": "sshelf",
       "runtimeExecutable": "bun",
       "runtimeArgs": ["run", "dev"],
       "port": 3010,

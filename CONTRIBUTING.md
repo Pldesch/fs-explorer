@@ -1,4 +1,4 @@
-# Contributing to Codex Explorer
+# Contributing to Sshelf
 
 Thanks for your interest in contributing! This is an alpha open-source project,
 so issues, ideas, and pull requests are all welcome.
@@ -17,8 +17,8 @@ bun run dev
 ```
 
 Then open <http://localhost:3010>. On first run you pick the SSH host to connect
-to (or set `EXPLORER_SSH_HOST`). The browsed remote root defaults to
-`/home/ubuntu` and can be overridden with `EXPLORER_REMOTE_ROOT`.
+to (or set `SSHELF_SSH_HOST`). The browsed remote root defaults to
+`/home/ubuntu` and can be overridden with `SSHELF_REMOTE_ROOT`.
 
 ## Quality gates
 

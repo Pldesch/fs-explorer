@@ -41,7 +41,7 @@ function initAutoUpdates(mainWindow) {
       defaultId: 0,
       cancelId: 1,
       title: "Update ready",
-      message: `Codex Explorer ${info.version} is ready to install.`,
+      message: `Sshelf ${info.version} is ready to install.`,
       detail:
         "The update has been downloaded. Restart now to apply it, or it will " +
         "install the next time you quit.",

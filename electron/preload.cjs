@@ -1,5 +1,5 @@
 const { contextBridge } = require("electron")
 
-contextBridge.exposeInMainWorld("codexExplorer", {
+contextBridge.exposeInMainWorld("sshelf", {
   platform: process.platform,
 })

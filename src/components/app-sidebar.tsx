@@ -26,7 +26,7 @@ export function AppSidebar({ activePath }: { activePath: string }) {
         <Link to="/" className="flex items-center gap-2.5 px-1">
           <FolderTree className="size-7 text-[var(--paper)]" aria-hidden />
           <span className="text-base font-semibold tracking-tight text-[var(--paper)]">
-            Explorer
+            Sshelf
           </span>
         </Link>
       </SidebarHeader>
