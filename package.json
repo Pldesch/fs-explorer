@@ -5,7 +5,7 @@
   "author": "Pierre-Loic Deschaetzen",
   "repository": {
     "type": "git",
-    "url": "https://github.com/Pldesch/fs-explorer.git"
+    "url": "https://github.com/Pldesch/sshelf.git"
   },
   "private": true,
   "type": "module",
@@ -92,7 +92,7 @@
     "publish": {
       "provider": "github",
       "owner": "Pldesch",
-      "repo": "fs-explorer",
+      "repo": "sshelf",
       "releaseType": "release"
     },
     "directories": {

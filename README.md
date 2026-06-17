@@ -12,6 +12,15 @@ box over the SSH connection you already trust.
 > **Status: alpha.** It works and it's used daily, but interfaces and storage
 > formats may still change. Feedback and contributions welcome.
 
+## Screenshots
+
+|                                                           |                                                       |
+| --------------------------------------------------------- | ----------------------------------------------------- |
+| ![File explorer](docs/screenshots/01-explorer.png)        | ![Markdown editor](docs/screenshots/02-markdown.png)  |
+| **Browse a remote tree** like a local workspace           | **Edit Markdown** in a WYSIWYG editor that autosaves  |
+| ![Database table](docs/screenshots/03-database-table.png) | ![Kanban board](docs/screenshots/04-kanban-board.png) |
+| **Open SQLite files** as Notion-style typed tables        | **Flip to a Kanban board** grouped by any column      |
+
 ## Why Sshelf exists
 
 A lot of useful stuff lives on a remote box — a VPS, a lab server, a homelab,
@@ -73,10 +82,10 @@ keys or credentials — it reuses yours.
 
 Sshelf is configured through environment variables (all optional):
 
-| Variable             | Default            | Description                                                            |
-| -------------------- | ------------------ | --------------------------------------------------------------------- |
-| `SSHELF_SSH_HOST`    | _(chosen in-app)_  | SSH host to connect to. Must match an entry in `~/.ssh/config`.       |
-| `SSHELF_REMOTE_ROOT` | `/home/ubuntu`     | The remote directory shown as the workspace root.                     |
+| Variable             | Default           | Description                                                     |
+| -------------------- | ----------------- | --------------------------------------------------------------- |
+| `SSHELF_SSH_HOST`    | _(chosen in-app)_ | SSH host to connect to. Must match an entry in `~/.ssh/config`. |
+| `SSHELF_REMOTE_ROOT` | `/home/ubuntu`    | The remote directory shown as the workspace root.               |
 
 The chosen host is also remembered between runs in `~/.sshelf.json`.
 
