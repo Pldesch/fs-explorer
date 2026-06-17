@@ -67,7 +67,7 @@ export function dbTablesQueryOptions(path: string) {
 export function dbTableQueryOptions(
   path: string,
   table: string,
-  offset: number
+  offset = 0
 ) {
   return queryOptions({
     queryKey: ["db", "table", path, table, offset] as const,
