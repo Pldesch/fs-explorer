@@ -4,15 +4,15 @@ import { homedir } from "node:os"
 import { join } from "node:path"
 
 // The remote directory the explorer is rooted at. Override with
-// EXPLORER_REMOTE_ROOT (should be an absolute path); defaults to /home/ubuntu.
-export const REMOTE_ROOT = process.env.EXPLORER_REMOTE_ROOT || "/home/ubuntu"
+// SSHELF_REMOTE_ROOT (should be an absolute path); defaults to /home/ubuntu.
+export const REMOTE_ROOT = process.env.SSHELF_REMOTE_ROOT || "/home/ubuntu"
 
 /** Thrown (by message) when no SSH host has been chosen yet. */
 export const SETUP_REQUIRED = "SETUP_REQUIRED"
 
 // The chosen host also lives in a tiny config file so SSR works right
 // after a server restart, before the browser can send its stored choice.
-const CONFIG_FILE = join(homedir(), ".codex-explorer.json")
+const CONFIG_FILE = join(homedir(), ".sshelf.json")
 
 function readPersistedHost(): string | null {
   try {
@@ -25,8 +25,7 @@ function readPersistedHost(): string | null {
   }
 }
 
-let sshHost: string | null =
-  process.env.EXPLORER_SSH_HOST || readPersistedHost()
+let sshHost: string | null = process.env.SSHELF_SSH_HOST || readPersistedHost()
 
 export function getCurrentHost(): string | null {
   return sshHost
@@ -109,7 +108,7 @@ const SSH_BASE_ARGS = [
         "-o",
         "ControlMaster=auto",
         "-o",
-        "ControlPath=/tmp/ce-%C",
+        "ControlPath=/tmp/sshelf-%C",
         "-o",
         "ControlPersist=3600",
       ]),

@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
  * dbcli — a tiny CLI for reading and editing the SQLite databases used by
- * Codex Explorer (or any SQLite file), local or over SSH.
+ * Sshelf (or any SQLite file), local or over SSH.
  *
  * It shells out to the `sqlite3` CLI in JSON mode, mirroring how the app's
  * server layer works, so agents operate on the exact same files the UI shows.
@@ -14,10 +14,10 @@
  *   node scripts/dbcli.mjs sql <db> "<SQL>" [--write]
  *
  * Target selection (where the db file lives):
- *   default     use the host saved in ~/.codex-explorer.json; relative paths
+ *   default     use the host saved in ~/.sshelf.json; relative paths
  *               resolve under the remote root (same as the app), which
  *               defaults to /home/ubuntu and is overridable via
- *               EXPLORER_REMOTE_ROOT
+ *               SSHELF_REMOTE_ROOT
  *   --host X    SSH to host alias X
  *   --local     run against the local filesystem (path relative to cwd)
  */
@@ -27,8 +27,8 @@ import { readFileSync } from "node:fs"
 import { homedir } from "node:os"
 import { join } from "node:path"
 
-const REMOTE_ROOT = process.env.EXPLORER_REMOTE_ROOT || "/home/ubuntu"
-const CONFIG_FILE = join(homedir(), ".codex-explorer.json")
+const REMOTE_ROOT = process.env.SSHELF_REMOTE_ROOT || "/home/ubuntu"
+const CONFIG_FILE = join(homedir(), ".sshelf.json")
 
 function fail(message) {
   process.stderr.write(`dbcli: ${message}\n`)
@@ -80,7 +80,7 @@ function resolveTarget(flags) {
   if (!host) {
     fail(
       "no SSH host. Pass --host <alias>, or --local for a local file, " +
-        "or configure one in ~/.codex-explorer.json"
+        "or configure one in ~/.sshelf.json"
     )
   }
   return { local: false, host }

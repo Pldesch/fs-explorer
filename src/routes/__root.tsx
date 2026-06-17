@@ -26,7 +26,7 @@ export const Route = createRootRouteWithContext<RouterAppContext>()({
         content: "width=device-width, initial-scale=1",
       },
       {
-        title: "Codex Explorer",
+        title: "Sshelf",
       },
     ],
     links: [

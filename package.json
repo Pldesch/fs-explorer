@@ -1,7 +1,7 @@
 {
-  "name": "codex-explorer",
+  "name": "sshelf",
   "version": "0.5.5",
-  "description": "Desktop SSH file explorer",
+  "description": "A local-first, Notion-style desktop workspace for the files on a remote SSH machine",
   "author": "Pierre-Loic Deschaetzen",
   "repository": {
     "type": "git",
@@ -85,8 +85,8 @@
     "@noble/hashes": "1.8.0"
   },
   "build": {
-    "appId": "com.codexexplorer.app",
-    "productName": "Codex Explorer",
+    "appId": "com.sshelf.app",
+    "productName": "Sshelf",
     "artifactName": "${name}-${version}-${arch}.${ext}",
     "afterPack": "build/afterPack.cjs",
     "publish": {

@@ -42,7 +42,7 @@ import { useTree } from "@/lib/use-tree"
 import { treeQueryOptions } from "@/lib/queries"
 import { nameOf, parentOf, rawFileUrl } from "@/lib/file-kinds"
 
-const ENTRY_DRAG_MIME = "application/x-codex-explorer-entry"
+const ENTRY_DRAG_MIME = "application/x-sshelf-entry"
 
 interface EntryRef {
   path: string

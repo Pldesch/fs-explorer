@@ -21,7 +21,7 @@ import { selectSshHost } from "@/server/files"
 import { cn } from "@/lib/utils"
 import type { SshConfigHost } from "@/server/ssh"
 
-export const HOST_STORAGE_KEY = "explorer.ssh-host"
+export const HOST_STORAGE_KEY = "sshelf.ssh-host"
 
 export function SetupScreen({
   hosts,

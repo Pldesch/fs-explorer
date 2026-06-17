@@ -1,11 +1,11 @@
 ---
 name: dbcli
-description: Read, query, insert, update, delete, and discover the schema of the SQLite databases used by Codex Explorer (or any SQLite file), local or over SSH. Use whenever asked to inspect a database's schema, read or modify rows, or work with a .sqlite/.db file by path — e.g. "what's in crm.sqlite", "add a contact", "mark this row contacted", "show the columns of this database". Always run `discover` first to learn the tables, columns, and Notion-style types before writing.
+description: Read, query, insert, update, delete, and discover the schema of the SQLite databases used by Sshelf (or any SQLite file), local or over SSH. Use whenever asked to inspect a database's schema, read or modify rows, or work with a .sqlite/.db file by path — e.g. "what's in crm.sqlite", "add a contact", "mark this row contacted", "show the columns of this database". Always run `discover` first to learn the tables, columns, and Notion-style types before writing.
 ---
 
 # dbcli
 
-A CLI for reading and editing the SQLite databases that back Codex Explorer.
+A CLI for reading and editing the SQLite databases that back Sshelf.
 It shells out to `sqlite3` in JSON mode — locally or over SSH — so you operate
 on the exact same files the app shows. Output is JSON on stdout; errors go to
 stderr with a non-zero exit.
@@ -21,9 +21,9 @@ node scripts/dbcli.mjs <command> <db> [args] [flags]
 (`bun scripts/dbcli.mjs …` works too.)
 
 ### Where the database lives
-- **default** — connects to the SSH host saved in `~/.codex-explorer.json`;
+- **default** — connects to the SSH host saved in `~/.sshelf.json`;
   a relative `<db>` resolves under the remote root (same as the app), which
-  defaults to `/home/ubuntu` and is overridable via `EXPLORER_REMOTE_ROOT`.
+  defaults to `/home/ubuntu` and is overridable via `SSHELF_REMOTE_ROOT`.
   So with the default root, `crm.sqlite` means `/home/ubuntu/crm.sqlite` on
   that host.
 - `--host <alias>` — use a specific SSH host from `~/.ssh/config`.

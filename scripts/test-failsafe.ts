@@ -5,8 +5,8 @@ import { fetchTree, readRemoteFile, setSshHost } from "../src/server/ssh"
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms))
 
 // The module no longer assumes a default host — pick one explicitly.
-// Override the real host with EXPLORER_SSH_HOST when running this test.
-const TEST_HOST = process.env.EXPLORER_SSH_HOST || "ovh-codex"
+// Override the real host with SSHELF_SSH_HOST when running this test.
+const TEST_HOST = process.env.SSHELF_SSH_HOST || "ovh-codex"
 setSshHost(TEST_HOST)
 
 async function timed<T>(label: string, fn: () => Promise<T>) {
